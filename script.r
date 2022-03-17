@@ -1,627 +1,833 @@
-###Repertoire courant
-getwd()
-setwd('C:/Users/Fabien/Desktop/test')
-
-###Packages
-#install.packages('ade4')
-#install.packages('lattice')
-#install.packages('MASS')
-#install.packages('factoextra')
-#install.packages('adegraphics')
-#install.packages("mvnormtest")
-#install.packages("shiny")
-#install.packages("RCurl")
-#install.packages("DT")
-
-#library(adegraphics) #Package à activer uniquement avant certains graphique, activation le long du script
-library(ade4)
-library(lattice)
-library(MASS)
-library(factoextra)
-library(mvnormtest)
+library(shinydashboard)
+library(shinyjs)
 library(shiny)
 library(RCurl)
 library(DT)
+library(tidyverse)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggrepel)
+library(shinyWidgets)
+library(rsconnect)
+library(curl)
+ 
+ 
+
+##Preparation donnee---------------
+#url <- "https://raw.githubusercontent.com/astaquet/mangrove/main/datapropagule.txt"
+url <- "https://raw.githubusercontent.com/astaquet/mangrove/ab9e5a720f083d109def7118054d6734fb34b892/datapropagule.txt"
+ 
+#data <- read.csv2( text=readLines(url, warn = FALSE), h=T,sep="\t",dec=",")
+
+data <- read.csv2( url, h=T,sep="\t",dec=",", na.strings = "NA")
+
+url_rpot <- "https://raw.githubusercontent.com/astaquet/mangrove/main/racine_pot"
+data_rpot<- read.csv2( url_rpot, h=T,sep="\t",dec=",", na.strings = "NA")
+
+url_macouria <- "https://raw.githubusercontent.com/astaquet/mangrove/main/racine_macouria"
+data_macouria<- read.csv2( url_macouria, h=T,sep="\t",dec=",", na.strings = "NA")
+
+url_rac_macouria <- "https://raw.githubusercontent.com/astaquet/mangrove/main/vol_rac_macouria"
+data_rac_macouria<- read.csv2( url_rac_macouria, h=T,sep="\t",dec=",", na.strings = "NA")
+
+
+str(data_rac_macouria)
+str(data_rpot)
+
+data_macouria$Zone=as.factor(data_macouria$Zone)
+data_rpot$Individu=as.factor(data_rpot$Individu)
+data_rpot$Noeud    =as.numeric(data_rpot$Noeud    )
+data_rpot$Taille    =as.numeric(data_rpot$Taille    )
+data_rpot$Feuille    =as.numeric(data_rpot$Feuille    )
+
+data$BAC=as.factor(data$BAC)
+
+##Mise en forme des tableaux en variables lignes/colonnes
+df1 <- data %>%
+  dplyr::select(H_cumul,Traitement,BAC,Ligne, C1,C2,C3,C4,C5) %>%
+  gather(key = "variable", value = "hauteur", c(-H_cumul,-Traitement,-Ligne,-BAC))
+
+
+df2 <- data %>%
+  dplyr::select(H_cumul,Traitement,BAC,Ligne, F1,F2,F3,F4,F5)
+
+colnames(df2)<-c("H_cumul","Traitement","BAC","Ligne", "C1","C2","C3","C4","C5")
+
+
+df2 <- df2 %>%
+  dplyr::select(H_cumul,Traitement,BAC,Ligne, C1,C2,C3,C4,C5) %>%
+  gather(key = "variable", value = "nb_feuille", c(-H_cumul,-Traitement,-Ligne,-BAC))
+
+
+df3 <- data %>%
+  dplyr::select(H_cumul,Traitement,BAC,Ligne, CD1,	CD2,	CD3,	CD4,	CD5)
+
+colnames(df3)<-c("H_cumul","Traitement","BAC","Ligne", "C1","C2","C3","C4","C5")
+
+df3 <- df3 %>%
+  dplyr::select(H_cumul,Traitement,BAC,Ligne, C1,C2,C3,C4,C5) %>%
+  gather(key = "variable", value = "Nb_cotyledon", c(-H_cumul,-Traitement,-Ligne,-BAC))
+
+df4 <- data %>%
+  dplyr::select(H_cumul,Traitement,BAC,Ligne, T1,	T2,	T3,	T4,	T5)
+
+colnames(df4)<-c("H_cumul","Traitement","BAC","Ligne", "C1","C2","C3","C4","C5")
+
+df4 <- df4 %>%
+  dplyr::select(H_cumul,Traitement,BAC,Ligne, C1,C2,C3,C4,C5) %>%
+  gather(key = "variable", value = "Nb_Tige", c(-H_cumul,-Traitement,-Ligne,-BAC))
+
+
+df5 <- data %>%
+  dplyr::select(H_cumul,Traitement,BAC,Ligne, S1,	S2,	S3,	S4,	S5)
+
+colnames(df5)<-c("H_cumul","Traitement","BAC","Ligne", "C1","C2","C3","C4","C5")
+
+df5 <- df5 %>%
+  dplyr::select(H_cumul,Traitement,BAC,Ligne, C1,C2,C3,C4,C5) %>%
+  gather(key = "variable", value = "Developpement",c(-H_cumul,-Traitement,-Ligne,-BAC))
+
+
+df6 <- data %>%
+  dplyr::select(H_cumul,Traitement,BAC,Ligne, I1,	I2,	I3,	I4,	I5)
+
+colnames(df6)<-c("H_cumul","Traitement","BAC","Ligne", "C1","C2","C3","C4","C5")
+
+df6 <- df6 %>%
+  dplyr::select(H_cumul,Traitement,BAC,Ligne, C1,C2,C3,C4,C5) %>%
+  gather(key = "variable", value = "Individu",c(-H_cumul,-Traitement,-Ligne,-BAC))
+
+df5=na.omit(df5)
+
+
+dfa=left_join(df1, df2) %>%
+  dplyr::select(H_cumul,Traitement,BAC, Ligne,variable, hauteur,nb_feuille)
+
+
+dfb=left_join(dfa,df3) %>%
+  dplyr::select(H_cumul,Traitement,BAC, Ligne,variable, hauteur,nb_feuille,Nb_cotyledon)
+
+
+dfc=left_join(dfb,df4) %>%
+  dplyr::select(H_cumul,Traitement,BAC, Ligne,variable, hauteur,nb_feuille,Nb_cotyledon,Nb_Tige)
+
+dfd=left_join(dfc,df5) %>%
+  dplyr::select(H_cumul,Traitement,BAC, Ligne,variable, hauteur,nb_feuille,Nb_cotyledon,Nb_Tige,Developpement)
+
+dfe=left_join(dfd,df6) %>%
+  dplyr::select(H_cumul,Traitement,BAC,Individu, Ligne,variable, hauteur,nb_feuille,Nb_cotyledon,Nb_Tige,Developpement)
+
+df=left_join(dfd, df6) %>%
+  dplyr::select(H_cumul,Traitement,BAC,Individu, Ligne,variable, hauteur,nb_feuille,Nb_cotyledon,Nb_Tige,Developpement)
+
+df$Jour<-round(df$H_cumul/24)
 
 
 
-###Chargement des jeux de données par fichier
-data = read.table("MARELCArnot_2005_2009.csv",dec = "," , header = T, sep=";")
+dshiny<-df 
+dshiny$Traitement=as.factor(dshiny$Traitement)
+dshiny$BAC=as.factor(dshiny$BAC)
+dshiny$Developpement=as.factor(dshiny$Developpement)
 
-
-###Chargement des jeux de données par Internet (fonctionnalité varie en fonction de la version de R)
-url <- getURL('https://raw.githubusercontent.com/astaquet/marel1/main/MARELCArnot_2005_2009.csv')
-data = read.table(textConnection(url),dec = "," , header = T, sep=";")
-#data <- read.delim(textConnection(url),dec = "," , header = T, sep=";") #Alternative
-
-
-###Observation des données
-summary(data)
-names(data)
-str(data)
-
-###Mise en forme des dates
-
-#Conversion du format des données dates
-Datesnum1 = strptime(data$Time,"%d/%m/%Y %H:%M")
-
-#Fusion avec variable date
-data2=cbind(data,Datesnum1)
-
-###Traitement des données
-
-##Selection 2007_2008
-data3=data2[data2$Datesnum1>="2007-01-01 00:20:00" & data2$Datesnum1<="2008-12-31 23:40:00",]
-str(data3)
-
-##Suppression variable avec trop de NA
-data4=data3[,c(-2,-4,-5)]
-str(data4)
-
-##Creation sous-groupe 2007 et 2008
-data2007=data4[data4$Datesnum1>="2007-01-01 00:20:00" & data4$Datesnum1<="2007-12-31 23:40:00",]
-data2008=data4[data4$Datesnum1>="2008-01-01 00:20:00" & data4$Datesnum1<="2008-12-31 23:40:00",]
-
-##Creation variable factor Mois pour 2007
-#Janvier
-Janvier=data2007[data2007$Datesnum1>="2007-01-01 00:20:00"& data2007$Datesnum1<="2007-01-31 23:40:00",]
-Mois=rep("Janvier",nrow(Janvier))
-Janvier2=cbind(Mois,Janvier)
-
-#Fevrier
-Fevrier=data2007[data2007$Datesnum1>="2007-02-01 00:20:00"& data2007$Datesnum1<="2007-02-28 23:40:00",]
-Mois=rep("Fevrier",nrow(Fevrier))
-Fevrier2=cbind(Mois,Fevrier)
-
-#Mars
-Mars=data2007[data2007$Datesnum1>="2007-03-01 00:20:00"& data2007$Datesnum1<="2007-03-31 23:40:00",]
-Mois=rep("Mars",nrow(Mars))
-Mars2=cbind(Mois,Mars)
-
-#Avril
-Avril=data2007[data2007$Datesnum1>="2007-04-01 00:20:00"& data2007$Datesnum1<="2007-04-30 23:40:00",]
-Mois=rep("Avril",nrow(Avril))
-Avril2=cbind(Mois,Avril)
-
-#Mai
-Mai= data2007[data2007$Datesnum1>="2007-05-01 00:20:00"& data2007$Datesnum1<="2007-05-31 23:40:00",]
-Mois=rep("Mai",nrow(Mai))
-Mai2=cbind(Mois,Mai)
-
-#Juin
-Juin= data2007[data2007$Datesnum1>="2007-06-01 00:20:00"& data2007$Datesnum1<="2007-06-30 23:40:00",]
-Mois=rep("Juin",nrow(Juin))
-Juin2=cbind(Mois,Juin)
-
-#Juillet
-Juillet= data2007[data2007$Datesnum1>="2007-07-01 00:20:00"& data2007$Datesnum1<="2007-07-31 23:40:00",]
-Mois=rep("Juillet",nrow(Juillet))
-Juillet2=cbind(Mois,Juillet)
-
-#Aout
-Aout= data2007[data2007$Datesnum1>="2007-08-01 00:20:00"& data2007$Datesnum1<="2007-08-31 23:40:00",]
-Mois=rep("Aout",nrow(Aout))
-Aout2=cbind(Mois,Aout)
-
-#Septembre
-Septembre=data2007[data2007$Datesnum1>="2007-09-01 00:20:00"& data2007$Datesnum1<="2007-09-30 23:40:00",]
-Mois=rep("Septembre",nrow(Septembre))
-Septembre2=cbind(Mois,Septembre)
-
-#Octobre
-Octobre= data2007[data2007$Datesnum1>="2007-10-01 00:20:00"& data2007$Datesnum1<="2007-10-31 23:40:00",]
-Mois=rep("Octobre",nrow(Octobre))
-Octobre2=cbind(Mois,Octobre)
-
-#Novembre
-Novembre= data2007[data2007$Datesnum1>="2007-11-01 00:20:00"& data2007$Datesnum1<="2007-11-30 23:40:00",]
-Mois=rep("Novembre",nrow(Novembre))
-Novembre2=cbind(Mois,Novembre)
-
-#Decembre
-Decembre=data2007[data2007$Datesnum1>="2007-11-01 00:20:00"& data2007$Datesnum1<="2007-12-31 23:40:00",]
-Mois=rep("Decembre",nrow(Decembre))
-Decembre2=cbind(Mois,Decembre)
-
-##Liaison des sous groupe
-data2007final=rbind(Janvier2,Fevrier2,Mars2,Avril2,Mai2,Juin2,Juillet2,Aout2,Septembre2,Octobre2,Novembre2,Decembre2)
-data2007final$Mois=as.factor(data2007final$Mois)
-str(data2007final)
-
-##Creation variable factor Mois pour 2008
-#Janvier
-Janvier=data2008[data2008$Datesnum1>="2008-01-01 00:20:00"& data2008$Datesnum1<="2008-01-31 23:40:00",]
-Mois=rep("Janvier",nrow(Janvier))
-Janvier2=cbind(Mois,Janvier)
-
-#Fevrier
-Fevrier=data2008[data2008$Datesnum1>="2008-02-01 00:20:00"& data2008$Datesnum1<="2008-02-29 23:40:00",]
-Mois=rep("Fevrier",nrow(Fevrier))
-Fevrier2=cbind(Mois,Fevrier)
-
-#Mars
-Mars=data2008[data2008$Datesnum1>="2008-03-01 00:20:00"& data2008$Datesnum1<="2008-03-31 23:40:00",]
-Mois=rep("Mars",nrow(Mars))
-Mars2=cbind(Mois,Mars)
-
-#Avril
-Avril=data2008[data2008$Datesnum1>="2008-04-01 00:20:00"& data2008$Datesnum1<="2008-04-30 23:40:00",]
-Mois=rep("Avril",nrow(Avril))
-Avril2=cbind(Mois,Avril)
-
-#Mai
-Mai=data2008[data2008$Datesnum1>="2008-05-01 00:20:00"& data2008$Datesnum1<="2008-05-31 23:40:00",]
-Mois=rep("Mai",nrow(Mai))
-Mai2=cbind(Mois,Mai)
-
-#Juin
-Juin=data2008[data2008$Datesnum1>="2008-06-01 00:20:00"& data2008$Datesnum1<="2008-06-30 23:40:00",]
-Mois=rep("Juin",nrow(Juin))
-Juin2=cbind(Mois,Juin)
-
-#Juillet
-Juillet=data2008[data2008$Datesnum1>="2008-07-01 00:20:00"& data2008$Datesnum1<="2008-07-31 23:40:00",]
-Mois=rep("Juillet",nrow(Juillet))
-Juillet2=cbind(Mois,Juillet)
-
-#Aout
-Aout=data2008[data2008$Datesnum1>="2008-08-01 00:20:00"& data2008$Datesnum1<="2008-08-31 23:40:00",]
-Mois=rep("Aout",nrow(Aout))
-Aout2=cbind(Mois,Aout)
-
-#Septembre
-Septembre=data2008[data2008$Datesnum1>="2008-09-01 00:20:00"& data2008$Datesnum1<="2008-09-30 23:40:00",]
-Mois=rep("Septembre",nrow(Septembre))
-Septembre2=cbind(Mois,Septembre)
-
-#Octobre
-Octobre=data2008[data2008$Datesnum1>="2008-10-01 00:20:00"& data2008$Datesnum1<="2008-10-31 23:40:00",]
-Mois=rep("Octobre",nrow(Octobre))
-Octobre2=cbind(Mois,Octobre)
-
-#Novembre
-Novembre=data2008[data2008$Datesnum1>="2008-11-01 00:20:00"& data2008$Datesnum1<="2008-11-30 23:40:00",]
-Mois=rep("Novembre",nrow(Novembre))
-Novembre2=cbind(Mois,Novembre)
-
-#Decembre
-Decembre=data2008[data2008$Datesnum1>="2008-12-01 00:20:00"& data2008$Datesnum1<="2008-12-31 23:40:00",]
-Mois=rep("Decembre",nrow(Decembre))
-Decembre2=cbind(Mois,Decembre)
-
-##Liason des sous groupe
-data2008final=rbind(Janvier2,Fevrier2,Mars2,Avril2,Mai2,Juin2,Juillet2,Aout2,Septembre2,Octobre2,Novembre2,Decembre2)
-data2008final$Mois= as.factor(data2008final$Mois)
-str(data2008final)  # permet de voir le type de format de variable
-
-##Creation variable factor annee
-nrow(data2007final)
-Annee=rep(2007, nrow(data2007final))
-data2007gr=cbind(data2007final,Annee)
-
-nrow(data2008final)
-Annee=rep(2008, nrow(data2008final))
-data2008gr=cbind(data2008final,Annee)
-
-data_final=rbind(data2007gr,data2008gr)
-data_final$Annee=as.factor(data_final$Annee)
-summary(data_final)
-data_final$Mois=factor(data_final$Mois, levels = unique(data_final$Mois)) #Mettre en ordre non alphabétique
-
-
-####RECAPITULATIF DES DATAFRAMES
-
-data_final #Ensemble des données 2007 et 2008 avec rajout variable "Mois" et "annee"
-data2007final # Ensemble des données de 2007 avec rajout variable "Mois" et "annee"
-data2008final #Ensemble des données de 2008 avec rajout variable "Mois" et "annee"
-
-
-####Description graphique générale du jeu de donnée - création d'une application R Shiny  ####  
-
-## ==> URL de l'application : https://neirda.shinyapps.io/Marel13/ 
-
-ui <- fluidPage(
-  headerPanel("MAREL - 2007 et 2008"),
+# Define UI for application  --------------------
+ui <- dashboardPage(
+ 
   
-  fluidRow(                    
-    column(12,  sidebarPanel(
-      selectInput('xcol', 'Variable en X', names(data_final), selected = names(data_final)[[14]]),
-      selectInput('ycol', 'Variable en Y gauche', names(data_final), selected = names(data_final)[[9]]),
-      selectInput('ycol2', 'Variable en Y droite', names(data_final),
-                  selected = names(data_final)[[11]])))),
-  
-  fluidRow(   
-    column(12, plotOutput('plot'))),
-  
-  fluidRow(        
-    column(6, plotOutput('hist')),
-    column(6, plotOutput('hist2'))),
-  
-  fluidRow(        
-    column(12, verbatimTextOutput("stats")))
+  dashboardHeader(title ="A. germinans"),
+  dashboardSidebar( sidebarMenu(
+    menuItem("Croissance", tabName = "Croissance", icon = icon("dashboard")),
+    menuItem("Developpement", tabName = "Developpement", icon = icon("th")),
+    menuItem("Macouria", tabName = "Macouria", icon = icon("th")),
+    menuItem("Racine", tabName = "Racine", icon = icon("th")),
+    menuItem("Volume_Macouria", tabName = "Volume_Macouria", icon = icon("th"))
+    
+  )),
+  dashboardBody(
+    tabItems( 
+      ###Croissance---------------------
+      
+      tabItem(tabName ="Croissance",
+              
+              fluidRow(
+                
+                
+                box(title = "Inputs", status = "warning", solidHeader = TRUE,
+                    collapsible = TRUE, 
+                    inputPanel(
+                      selectInput('x', 'X', choices = c("H_cumul","BAC","Ligne", "variable" ,"hauteur","nb_feuille",  "Nb_cotyledon" , "Nb_Tige" ,"Developpement", "Individu","Jour"),
+                                  selected = "Jour"),
+                      selectInput('y', 'Y', choices = c("H_cumul","BAC","Ligne", "variable" ,"hauteur","nb_feuille",  "Nb_cotyledon" , "Nb_Tige" ,"Developpement", "Individu","Jour"), 
+                                  selected = "hauteur"),
+                      selectInput('z', 'Groupe', choices = c( "BAC", "Individu"), 
+                                  selected = "BAC")
+                    )
+                ),
+                box(  title = "Inputs/2", status = "warning", solidHeader = TRUE,
+                      collapsible = TRUE,  
+                      
+                      
+                      # this is our group checkbox
+                      checkboxGroupInput(
+                        inputId = 'BACPLANT',
+                        label = 'Selectionner le Bac',
+                        choices = unique(dshiny$BAC)
+                      ),
+                      
+                      # this is how we will set the state of "all" or "none"
+                      checkboxInput('toggle_cyl', "All" )
+                      ,
+                      checkboxInput(inputId="delgado", label="Tendance", value = FALSE),
+                      checkboxInput(inputId="density", label="2e variable de dist./hist (champ Y)", value = FALSE) ),
+                
+                box(radioGroupButtons(
+                  inputId = "change_plot",
+                  label = "Type de plot :",
+                  choices = c(
+                    `<i class='fa fa-line-chart'></i>` = "Point",
+                    `<i class='fa fa-area-chart'></i>` = "Density",
+                    `<i class='fa fa-align-left'></i>` = "Barchart",
+                    `<i class='fa fa-minus-square-o'></i>` = "Boxplot",
+                    `<i class='fa fa-bar-chart'></i>` = "Hist"
+                    
+                  ),
+                  justified = TRUE,
+                  selected = "Point"
+                ))
+               
+                
+              ),
+              
+          
+              
+              fluidRow(                    
+                box(title = "Croissance de la tige d'Avicennia germinans", width = '100%',solidHeader = TRUE,
+                    collapsible = TRUE, status = "primary", plotOutput("plot", brush = "plot_brush"))
+            
+                
+               
+                
+                ),
+              
+              
+              tableOutput("data")
+              
+              
+              
+      ),
+      ###Developpement---------------------
+      
+      tabItem(tabName ="Developpement",
+              fluidRow(
+                
+                
+                box(title = "Inputs", status = "warning", solidHeader = TRUE,
+                    collapsible = TRUE,  
+                    # this is our group checkbox
+                    checkboxGroupInput(
+                      inputId = 'TRAITPLANT',
+                      label = 'Selectionner le Lieu',
+                      choices = unique(dshiny$Traitement)
+                    ),
+                    
+                    # this is how we will set the state of "all" or "none"
+                    checkboxInput('toggle_cyl3', "All" )
+                )
+                ,box( title = "Inputs/2", status = "warning", solidHeader = TRUE,
+                      collapsible = TRUE, 
+                      # this is our group checkbox
+                      checkboxGroupInput(
+                        inputId = 'BACPLANT2',
+                        label = 'Selectionner le Bac',
+                        choices = unique(dshiny$BAC)
+                      ),
+                      
+                      # this is how we will set the state of "all" or "none"
+                      checkboxInput('toggle_cyl2', "All" )
+                )
+                
+              ),
+              
+              
+              fluidRow(                    
+                box( title = "Stade de developpement d'A. germinans", width = '100%',solidHeader = TRUE,
+                     collapsible = TRUE, status = "primary", plotOutput("plot2" ))) 
+              
+              
+              
+      ),
+      
+      ###Macouria---------------------
+      
+      tabItem(tabName ="Macouria",
+              
+              fluidRow(
+                
+                
+                box(title = "Inputs", status = "warning", solidHeader = TRUE,
+                    collapsible = TRUE, 
+                    inputPanel(
+                      selectInput('xm2', 'X', choices = c("DB30","DB130","DRC", "DRL" ,"Epaisseur_racine","DB30_Anastomose ",  "Epaisseur_Racine_A" , "Individu" ,"Zone"),
+                                  selected = "DB30"),
+                      selectInput('ym2', 'Y', choices = c("DB30","DB130","DRC", "DRL" ,"Epaisseur_racine","DB30_Anastomose ",  "Epaisseur_Racine_A" , "Individu" ,"Zone"), 
+                                  selected = "DRL"),
+                      selectInput('zm2', 'Groupe', choices = c( "Zone", "Individu"), 
+                                  selected = "Zone")
+                    )
+                ),
+                box(  title = "Inputs/2", status = "warning", solidHeader = TRUE,
+                      collapsible = TRUE,  
+                      
+                      
+                      # this is our group checkbox
+                      checkboxGroupInput(
+                        inputId = 'BACPLANTm2',
+                        label = 'Selectionner la zone',
+                        choices = unique(data_macouria$Zone)
+                      ),
+                      
+                      # this is how we will set the state of "all" or "none"
+                      checkboxInput('toggle_cylm2', "All" ),
+                      checkboxInput(inputId="tendancem2", label="Tendance", value = FALSE),
+                      checkboxInput(inputId="densitym2", label="2e variable de dist./hist (champ Y)", value = FALSE),
+                      
+                 ),
+                box(radioGroupButtons(
+                  inputId = "change_plotm2",
+                  label = "Type de plot :",
+                  choices = c(
+                    `<i class='fa fa-line-chart'></i>` = "Point",
+                    `<i class='fa fa-area-chart'></i>` = "Density",
+                    `<i class='fa fa-align-left'></i>` = "Barchart",
+                    `<i class='fa fa-minus-square-o'></i>` = "Boxplot",
+                    `<i class='fa fa-bar-chart'></i>` = "Hist"
+                    
+                  ),
+                  justified = TRUE,
+                  selected = "Point"
+                ))
+                
+              ),
+              
+              fluidRow(                    
+                
+              ),
+              
+              fluidRow(                    
+                box(title = "Macouria", width = '100%',solidHeader = TRUE,
+                    collapsible = TRUE, status = "primary", plotOutput("plotm2", brush = "plot_brushm2"))
+                
+                ),
+              
+              
+              tableOutput("datam2")
+              
+              
+              
+      ),
+   ###RACINE---------------------
+         tabItem(tabName ="Racine",
+              
+              fluidRow(
+                
+                
+                box(title = "Inputs", status = "warning", solidHeader = TRUE,
+                    collapsible = TRUE, 
+                    inputPanel(
+                      selectInput('xR2', 'X', choices = c("Individu","Noeud","Taille", "Diametre" ,"Feuille"),
+                                  selected = "Feuille"),
+                      selectInput('yR2', 'Y', choices = c("Individu","Noeud","Taille", "Diametre" ,"Feuille"), 
+                                  selected = "Noeud"),
+                      selectInput('zR2', 'Groupe', choices = c("Individu"), 
+                                  selected = "Individu")
+                    )
+                    ,
+                    ),
+                box(  title = "Inputs/2", status = "warning", solidHeader = TRUE,
+                      collapsible = TRUE,  
+                      
+                      
+                      # this is our group checkbox
+                      # checkboxGroupInput(
+                      # inputId = 'BACPLANTR2',
+                      #  label = 'Selectionner la zone',
+                      # choices = unique(data_rpot$Individu)
+                      #),
+                      
+                      # this is how we will set the state of "all" or "none"
+                      # checkboxInput('toggle_cylR2', "All" ),
+                      checkboxInput(inputId="tendanceR2", label="Tendance", value = FALSE),
+                      checkboxInput(inputId="densityR2", label="2e variable de dist./hist (champ Y)", value = FALSE),
+                      
+                ),
+                
+                box(radioGroupButtons(
+                  inputId = "change_plotR2",
+                  label = "Type de plot :",
+                  choices = c(
+                    `<i class='fa fa-line-chart'></i>` = "Point",
+                    `<i class='fa fa-area-chart'></i>` = "Density",
+                    `<i class='fa fa-align-left'></i>` = "Barchart",
+                    `<i class='fa fa-minus-square-o'></i>` = "Boxplot",
+                    `<i class='fa fa-bar-chart'></i>` = "Hist"
+                    
+                  ),
+                  justified = TRUE,
+                  selected = "Point"
+                ))
+                
+              ),
+              
+              
+              fluidRow(                    
+                box(title = "Racine", width = '100%',solidHeader = TRUE,
+                    collapsible = TRUE, status = "primary", plotOutput("plotR2", brush = "plot_brushR2"))
+                
+                
+                ),
+              
+              
+              tableOutput("dataR2")
+              
+              
+              
+      )
+    
+      ,
+   
+   ###MACOURIAa VOLUME--------
+      tabItem(tabName ="Volume_Macouria",
+              
+              fluidRow(
+                
+                
+                box(title = "Inputs", status = "warning", solidHeader = TRUE,
+                    collapsible = TRUE, 
+                    inputPanel(
+                      selectInput('xV2', 'X', choices = c("ID","Length","D1  ", "D2" ,"Mass","Dmean","Vcyl","Vwater"),
+                                  selected = "Length"),
+                      selectInput('yV2', 'Y', choices = c("ID","Length","D1  ", "D2" ,"Mass","Dmean","Vcyl","Vwater",NULL), 
+                                  selected = "Mass") 
+                    )
+                    ,
+                )
+                
+              ,
+              box(  title = "Inputs/2", status = "warning", solidHeader = TRUE,
+                    collapsible = TRUE,  
+                    
+                    
+                    # this is our group checkbox
+                    checkboxGroupInput(
+                      inputId = 'BACPLANTV2',
+                      label = 'Selectionner la zone',
+                      choices = unique(data_rac_macouria$Individu)
+                    ),
+                    
+                    # this is how we will set the state of "all" or "none"
+                    checkboxInput('toggle_cylV2', "All" ),
+                    checkboxInput(inputId="tendanceV2", label="Tendance", value = FALSE),
+                    checkboxInput(inputId="densityV2", label="2e variable de dist./hist (champ Y)", value = FALSE),
+
+                    
+              ),
+              
+              box(radioGroupButtons(
+                inputId = "change_plotV2",
+                label = "Type de plot :",
+                choices = c(
+                  `<i class='fa fa-line-chart'></i>` = "Point",
+                  `<i class='fa fa-area-chart'></i>` = "Density",
+                  `<i class='fa fa-align-left'></i>` = "Barchart",
+                  #`<i class='fa fa-minus-square-o'></i>` = "Boxplot"
+                  `<i class='fa fa-bar-chart'></i>` = "Hist"
+                  
+                ),
+                justified = TRUE,
+                selected = "Point"
+              ))   
+              
+              
+              ),
+              
+              
+              fluidRow(                    
+                box(title = "Volume", width = '100%',solidHeader = TRUE,
+                    collapsible = TRUE, status = "primary", plotOutput("plotV2", brush = "plot_brushV2"))
+                
+                
+              ),
+              
+              
+              tableOutput("dataV2")
+              
+ 
+      )
+      
+      
+      
+    )
+  )
 )
 
-server <- shinyServer(function(input, output) {
-  Dataselect <- reactive({
-    data_final[, c(input$xcol, input$ycol)] 
+## Define server logic required to draw a histogram-----
+server <- function(input, output, session) {
+  
+  observeEvent(input$toggle_cyl, {
+    if (input$toggle_cyl)
+      updateCheckboxGroupInput(session, 'BACPLANT', selected = unique((dshiny$BAC)))
+    else
+      updateCheckboxGroupInput(session, 'BACPLANT', selected =  "1" )
   })
+  
   
   output$plot <- renderPlot({
-    par(mar = c(5.1, 4.1, 0, 1))
-    plot(Dataselect(),
-         col = "red", type='p',
-         pch = 1, cex = 1,yaxt="n",ylab="",yaxt="n")
-    axis(2,col="red")
-    par(new=TRUE) 
-    plot(data_final[, c(input$xcol)],data_final[, c(input$ycol2)],
-         axes=FALSE,type="p",
-         col="blue",xlab="",ylab="",yaxt="n")
-    axis(4,col="blue")  
+    
+    
+    if (input$change_plot %in% "Point") 
+    { 
+		dshiny %>%
+        dplyr::filter(BAC %in% input$BACPLANT) %>%
+        ggplot(aes_string(y=input$y, x = input$x)) +
+        geom_point(aes_string(color = input$z,pch = input$z),lwd=2)+
+        #ggtitle("Croissance de la tige d'Avicennia germinans")+
+        {if(input$delgado)geom_abline( intercept = 3.481e-14, slope=5,  color="red")}+
+        scale_color_manual(values = c(1:53)) + geom_smooth(aes_string(color = input$z),se = F) + theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+      
+      
+    } else if  (input$change_plot %in% "Density") 
+    {  
+      
+      dshiny %>%
+        dplyr::filter(BAC %in% input$BACPLANT) %>%
+        ggplot(aes_string( x = input$x)) +
+        geom_density(aes_string(color = input$z,lty = input$z))+
+        ggtitle("Distribution")+
+        
+         {if(input$density)geom_density(aes_string( x = input$y)) }+         
+		 scale_color_manual(values = c(1:53)) + theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+      
+     
+    }else if  (input$change_plot %in% "Barchart") 
+    { 
+      
+        dshiny %>%
+        dplyr::filter(BAC %in% input$BACPLANT) %>%
+        ggplot(aes_string(y=input$y, x = input$x)) +
+        geom_bar(stat="identity",aes_string(fill = input$z)) +
+            scale_color_manual(values = c(1:53))      + 
+        theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+      
+      
+      
+       
+      
+    }
+    else if  (input$change_plot %in% "Hist")    { 
+      
+      
+      
+      
+      dshiny %>%
+        dplyr::filter(BAC %in% input$BACPLANT) %>%
+        ggplot(aes_string( x = input$x)) +
+        geom_histogram(aes_string(color = input$z, fill = input$z), alpha=0.4)+
+        {if(input$density)geom_histogram(aes_string( x = input$y),fill="blue",alpha=0.4) }+
+      scale_color_manual(values = c(1:53))  + theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+      
+      
+      
+        
+    } else {
+      
+      dshiny %>%
+        dplyr::filter(BAC %in% input$BACPLANT) %>%
+        ggplot(aes_string(y=input$y, x = input$x)) +
+        geom_boxplot(aes_string(  fill = input$z)) +
+        scale_color_manual(values = c(1:53))   + theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+    }
+    
+
+    
   })
   
-  output$hist <- renderPlot({
-    hist(data_final[, c(input$ycol)],main=input$ycol,xlab="" )})
   
-  output$hist2 <- renderPlot({
-    hist(data_final[, c(input$ycol2)],main=input$ycol,xlab="")       
+  output$data <- renderTable({
+    brushedPoints(dshiny, input$plot_brush)
   })
   
-  output$stats <- renderPrint({
-    summary(Dataselect())
-  }) 
-})
-
-shinyApp(server = server, ui = ui)
-
-
-######Boxplot 2007 et 2008###
-
-# x11() #Ouverture de fenêtre graphique supplémentaire
-
-bw_lattice <-bwplot(data_final$Fluorescence~ factor(data_final$Mois, levels = unique(data_final$Mois))|data_final$Annee, xlab= "Mois", ylab="Fluorescence",scales=list(tick.number=6))
-bw_theme <- trellis.par.get()
-bw_theme$box.dot$pch <- "|"
-bw_theme$box.rectangle$col <- "black"
-bw_theme$box.rectangle$lwd <- 2
-bw_theme$box.rectangle$fill <- "grey90"
-bw_theme$box.umbrella$lty <- 1
-bw_theme$box.umbrella$col <- "black"
-bw_theme$plot.symbol$col <- "grey40"
-bw_theme$plot.symbol$pch <- "*"
-bw_theme$plot.symbol$cex <- 2
-bw_theme$strip.background$col <- "grey80"
-
-l_bw <- update(bw_lattice, par.settings = bw_theme)
-l_bw <- update(bw_lattice, par.settings = bw_theme, xlab = "Mois", fill = rainbow(12))
-l_bw
-
-#### Grahique fluorescence en 2007 et en 2008 ####
-par(mar=c(5,5,2,5)) 
-plot(data2007final$Datesnum1,data2007final$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4") 
-axis(2,col="royalblue4",col.axis = "royalblue4") # Parametrage de l'axe 2 (ordonnee gauche)
-mtext(text="2007",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1) 
-par(new=TRUE) 
-plot(data2008final$Fluorescence,axes=FALSE,type="l",col="brown2",xlab="",ylab="") 
-axis(4,col="brown2",col.axis = "brown2") 
-mtext(text="2008",side=4,line=3,las=0,cex=1, col="brown2") 
-
-
-#### Graph fluorescence en fonction des differents parametres et du temps pour 2007 ####
-
-## Graph de la fluorescence et de la saturation en oxygène en fonction du temps pour 2007 ## 
-par(mar=c(5,5,2,5)) 
-plot(data2007final$Datesnum1,data2007final$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4") 
-axis(2,col="royalblue4",col.axis = "royalblue4") 
-mtext(text="Fluorescence",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1) 
-par(new=TRUE) # Pour rajouter le graphique sur le graphique deja existant
-plot(data2007final$Datesnum1,data2007final$SaturationOxygene,axes=FALSE,type="l",col="brown2",xlab="",ylab="") # Affiche le deuxieme graphique avec la saturation en oxygène / axes=FALSE pour dire de ne pas dessiner les axes par defaut
-axis(4,col="brown2",col.axis = "brown2") # Parametrage de l'axe 4 (ordonnee droite)
-mtext(text="Saturation en oxygène",side=4,line=3,las=0,cex=1, col="brown2") # Rajoute le nom de l'axe des ordonnées de droite
-
-## Graph de la fluorescence et de l'oxygène dissous en fonction du temps pour 2007 ##
-par(mar=c(5,5,2,5)) 
-plot(data2007final$Datesnum1,data2007final$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4")
-axis(2,col="royalblue4",col.axis = "royalblue4") 
-mtext(text="Fluorescence",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1)
-par(new=TRUE) 
-plot(data2007final$Datesnum1,data2007final$OxyDissousCorrigeSalinite,axes=FALSE,type="l",col="brown2",xlab="",ylab="") 
-axis(4,col="brown2",col.axis = "brown2") 
-mtext(text="Oxygène dissous",side=4,line=3,las=0,cex=1, col="brown2") 
-
-## Graph de la fluorescence et du pH en fonction du temps pour 2007 ##
-par(mar=c(5,5,2,5)) 
-plot(data2007final$Datesnum1,data2007final$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4")
-axis(2,col="royalblue4",col.axis = "royalblue4") 
-mtext(text="Fluorescence",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1)
-par(new=TRUE) 
-plot(data2007final$Datesnum1,data2007final$pH,axes=FALSE,type="l",col="brown2",xlab="",ylab="") 
-axis(4,col="brown2",col.axis = "brown2") 
-mtext(text="pH",side=4,line=3,las=0,cex=1, col="brown2") 
-
-## Graph de la fluorescence et de la turbidite en fonction du temps pour 2007 ##
-par(mar=c(5,5,2,5)) 
-plot(data2007final$Datesnum1,data2007final$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4")
-axis(2,col="royalblue4",col.axis = "royalblue4") 
-mtext(text="Fluorescence",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1)
-par(new=TRUE) 
-plot(data2007final$Datesnum1,data2007final$Turbidite,axes=FALSE,type="l",col="brown2",xlab="",ylab="") 
-axis(4,col="brown2",col.axis = "brown2") 
-mtext(text="Turbidite",side=4,line=3,las=0,cex=1, col="brown2") 
-
-#### Graph de la fluorescence et de la turbidite en fonction du temps sur 48h pour 2007 ####
-ExtraitData2007avril=data2007final[data2007final$Datesnum1>="2007-04-22 00:00:00" & data2007final$Datesnum1<="2007-04-23 23:40:00",]
-
-par(mar=c(5,5,2,5)) 
-plot(ExtraitData2007avril$Datesnum1,ExtraitData2007avril$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4")
-axis(2,col="royalblue4",col.axis = "royalblue4") 
-mtext(text="Fluorescence",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1)
-par(new=TRUE) 
-plot(ExtraitData2007avril$Datesnum1,ExtraitData2007avril$Turbidite,axes=FALSE,type="l",col="brown2",xlab="",ylab="") 
-axis(4,col="brown2",col.axis = "brown2") 
-mtext(text="Turbidite",side=4,line=3,las=0,cex=1, col="brown2") 
-
-
-
-
-#### Graph fluorescence en fonction des differents parametres et du temps pour 2008 ####
-
-## Graph de la fluorescence et de la saturation en oxygène en fonction du temps pour 2008 ##
-#x11() 
-par(mar=c(5,5,2,5)) 
-plot(data2008final$Datesnum1,data2008final$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4") # Affiche le premier graphique avec la fluorescence en fonction du temps
-axis(2,col="royalblue4",col.axis = "royalblue4") 
-mtext(text="Fluorescence",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1) 
-par(new=TRUE) # Pour rajouter le graphique sur le graphique deja existant
-plot(data2008final$Datesnum1,data2008final$SaturationOxygene,axes=FALSE,type="l",col="brown2",xlab="",ylab="") 
-axis(4,col="brown2",col.axis = "brown2")
-mtext(text="Saturation en oxygène",side=4,line=3,las=0,cex=1, col="brown2") 
-
-## Graph de la fluorescence et de l'oxygène dissous en fonction du temps pour 2008 ##
-par(mar=c(5,5,2,5)) 
-plot(data2008final$Datesnum1,data2008final$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4")
-axis(2,col="royalblue4",col.axis = "royalblue4") 
-mtext(text="Fluorescence",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1)
-par(new=TRUE) 
-plot(data2008final$Datesnum1,data2008final$OxyDissousCorrigeSalinite,axes=FALSE,type="l",col="brown2",xlab="",ylab="") 
-axis(4,col="brown2",col.axis = "brown2") 
-mtext(text="Oxygène dissous",side=4,line=3,las=0,cex=1, col="brown2") 
-
-## Graph de la fluorescence et du pH en fonction du temps pour 2008 ##
-par(mar=c(5,5,2,5)) 
-plot(data2008final$Datesnum1,data2008final$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4")
-axis(2,col="royalblue4",col.axis = "royalblue4") 
-mtext(text="Fluorescence",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1)
-par(new=TRUE) 
-plot(data2008final$Datesnum1,data2008final$pH,axes=FALSE,type="l",col="brown2",xlab="",ylab="") 
-axis(4,col="brown2",col.axis = "brown2") 
-mtext(text="pH",side=4,line=3,las=0,cex=1, col="brown2") 
-
-## Graph de la fluorescence et de la turbidite en fonction du temps pour 2008 ##
-par(mar=c(5,5,2,5)) 
-plot(data2008final$Datesnum1,data2008final$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4")
-axis(2,col="royalblue4",col.axis = "royalblue4") 
-mtext(text="Fluorescence",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1)
-par(new=TRUE) 
-plot(data2008final$Datesnum1,data2008final$Turbidite,axes=FALSE,type="l",col="brown2",xlab="",ylab="") 
-axis(4,col="brown2",col.axis = "brown2") 
-mtext(text="Turbidite",side=4,line=3,las=0,cex=1, col="brown2") 
-
-
-###Sur 48h en avril 2007
-##Selection des données
-ExtraitData2007avril=data2007final[data2007final$Datesnum1>="2007-04-22 00:00:00" & data2007final$Datesnum1<="2007-04-23 23:40:00",]
-
-#Fluorescence et oxygène dissous
-plot(ExtraitData2007avril$Datesnum1,ExtraitData2007avril$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4")
-axis(2,col="royalblue4",col.axis = "royalblue4") 
-mtext(text="Fluorescence",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1)
-par(new=TRUE) 
-plot(ExtraitData2007avril$Datesnum1,ExtraitData2007avril$OxyDissousCorrigeSalinite,axes=F,type="l",col="brown2",xlab="",ylab="") 
-axis(4,col="brown2",col.axis = "brown2") 
-mtext(text="Oxygène dissous",side=4,line=3,las=0,cex=1, col="brown2") 
-
-#Fluorescence et turbidite
-plot(ExtraitData2007avril$Datesnum1,ExtraitData2007avril$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4")
-axis(2,col="royalblue4",col.axis = "royalblue4") 
-mtext(text="Fluorescence",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1)
-par(new=TRUE) 
-plot(ExtraitData2007avril$Datesnum1,ExtraitData2007avril$Turbidite,axes=F,type="l",col="brown2",xlab="",ylab="") 
-axis(4,col="brown2",col.axis = "brown2") 
-mtext(text="Turbidite",side=4,line=3,las=0,cex=1, col="brown2") 
-
-###Fluorescence et PAR
-plot(ExtraitData2007avril$Datesnum1,ExtraitData2007avril$Fluorescence,yaxt="n",xlab="",ylab="",type="l",col="royalblue4")
-axis(2,col="royalblue4",col.axis = "royalblue4") 
-mtext(text="Fluorescence",side=2,line=3,las=0, cex=1, col="royalblue4") 
-mtext(text="Temps",side=1,line=3,las=0,cex=1)
-par(new=TRUE) 
-plot(ExtraitData2007avril$Datesnum1,ExtraitData2007avril$PAR,axes=F,type="l",col="brown2",xlab="",ylab="") 
-axis(4,col="brown2",col.axis = "brown2") 
-mtext(text="PAR",side=4,line=3,las=0,cex=1, col="brown2") 
-
-#####Regression lineaire
-
-###Fluorescence et oxygène dissous lm
-lm1<-lm(ExtraitData2007avril$Fluorescence~ExtraitData2007avril$OxyDissousCorrigeSalinite)
-
-##extracting all the parameters and measures of fitness
-summary(lm1)
-
-##extracting the confidence intervals
-confint(lm1)
-lm1$coef
-
-##verifying the residual dignostic plots
-plot(lm1)
-
-#testing the normality of the residuals
-shapiro.test(lm1$residuals)
-
-#plotting the points with the associated regression lines
-plot(ExtraitData2007avril$Fluorescence,ExtraitData2007avril$OxyDissousCorrigeSalinite,ylab="Oxygène dissous", xlab="Fluorescence", pch=21, bg=1, col="royalblue4")
-
-
-###Fluorescence et turbidite lm
-
-##Transfo log
-lm2<-lm(log(ExtraitData2007avril$Fluorescence)~log(ExtraitData2007avril$Turbidite))
-
-##extracting all the parameters and measures of fitness
-summary(lm2)
-
-##extracting the confidence intervals
-confint(lm2)
-lm2$coef
-
-##verifying the residual dignostic plots
-plot(lm2)
-
-#testing the normality of the residuals
-shapiro.test(lm2$residuals)
-
-#plotting the points with the associated regression lines
-plot(ExtraitData2007avril$Fluorescence, ExtraitData2007avril$Turbidite,ylab="Turbidite", xlab="Fluorescence", pch=21, bg=1, col="royalblue4")
-abline(lm2$coef, col="brown2")
-
-###Pour 2007
-
-##Fluorescence et turbidite 
-nafinal=na.omit(data_final)
-
-plot(nafinal$Fluorescence,nafinal$Turbidite,xlab="Fluorescence",col="royalblue4" ,ylab="Turbidite", xlim=c(0,15))
-
-##Fluorescence et oxygène dissous
-plot(nafinal$Fluorescence,nafinal$OxyDissousCorrigeSalinite,xlab="Fluorescence",col="royalblue4",ylab="Oxygène dissous", xlim=c(0,15))
-
-
-
-
-
-###Analyses Multivariees
-##ACP
-
-#ACP2007
-naomit2007=na.omit(data2007final)
-
-acp=dudi.pca(naomit2007[,c(3,4,5,6,7,9,10,11,12,13)] ) 
-2
-acp$eig
-barplot(acp$eig, col = "blue")
-acp$eig/sum(acp$eig) * 100
-acp$co
-
-# Resultats des variables de l'acp
-resVar <- get_pca_var(acp)
-resVar$contrib        # Contributions aux axes
-par(mfrow = c(1, 2))
-for (i in 1:2) barplot(resVar$contrib[, i], 
-                       names.arg = row.names(resVar$contrib), las = 2, main = paste("Axe", i))
-
-detach("package:adegraphics")
-s.corcircle(acp$co)
-
-#ACP2008
-naomit2008=na.omit(data2008final)
-
-acp=dudi.pca(naomit2008[,c(3,4,5,6,7,9,10,11,12,13)] ) 
-2
-acp$eig
-barplot(acp$eig, col = "blue")
-acp$eig/sum(acp$eig) * 100
-acp$co
-
-# Resultats des variables
-resVar <- get_pca_var(acp)
-resVar$contrib        # Contributions aux axes
-par(mfrow = c(1, 2))
-for (i in 1:2) barplot(resVar$contrib[, i], 
-                       names.arg = row.names(resVar$contrib), las = 2, main = paste("Axe", i))
-
-
-detach("package:adegraphics")
-s.corcircle(acp$co)
-
-###AFD
-#AFD 2007
-naomit2007=na.omit(data2007final)
-
-afd1=discrimin(dudi.pca(naomit2007[,c(-1,-2,-5,-8,-6,-14)] ),naomit2007$Mois)
-3
-3
-afd1$eig
-afd1$eig/sum(afd1$eig) * 100
-afd1$gc
-afd1$va
-afd1$fa
-afd1$cp
-par(mfrow=c(1,2))
-
-plot(afd1)
-s.corcircle(afd1$va)
-s.arrow(afd1$fa)#plus fleche est grande plus est discriminante
-
-library(adegraphics)
-s.class(afd1$li, naomit2007$Mois,xlim = c(-2, 2), ylim = c(-3.5, 2.5), pellipses.col = adegpar(plabels.cex=0.8, ppoints.cex = 0, ppoints.alpha = 0.6, ppoints.col = col,plines.lty='blank' )$ppalette$quali(12,Pastel1))
-detach("package:adegraphics")
-
-#Test de permutation
-rand=rtest(discrimin(dudi.pca(naomit2007[,c(-1,-2,-5,-8,-6,-14)] ),naomit2007$Mois), 1000)
-3
-3
-2
-rand
-plot(rand)
-
-#LDA
-lda1=lda(naomit2007$Mois ~ naomit2007$OxyDissousCorrigeSalinite +naomit2007$Salinite  +naomit2007$PAR +naomit2007$pH +naomit2007$Turbidite +naomit2007$Fluorescence +naomit2007$TemperatureEau +naomit2007$NiveauMer,CV=TRUE )
-
-table(naomit2007$Mois,lda1$class)
-
-###AFD 2008
-naomit2008=na.omit(data2008final)
-
-afd1=discrimin(dudi.pca(naomit2008[,c(-1,-2,-5,-8,-6,-14)] ),naomit2008$Mois)
-3
-3
-afd1$eig
-afd1$eig/sum(afd1$eig) * 100
-afd1$gc
-afd1$va
-afd1$fa
-afd1$cp
-
-plot(afd1)
-s.corcircle(afd1$va)
-s.arrow(afd1$fa)
-
-library(adegraphics)
-s.class(afd1$li, naomit2008$Mois, pellipses.col = adegpar(plabels.cex=0.8, ppoints.cex = 0, ppoints.alpha = 0.6, ppoints.col = col,plines.lty='blank' )$ppalette$quali(12,Pastel1))
-detach("package:adegraphics")
-
-
-#Test de permutation
-rand=rtest(discrimin(dudi.pca(naomit2008[,c(-1,-2,-8,-14)] ),naomit2008$Mois), 1000)
-3
-3
-2
-rand
-plot(rand)
-
-#LDA
-lda1=lda(naomit2008$Mois ~ naomit2008$OxyDissousCorrigeSalinite +naomit2008$Salinite+naomit2008$PAR +naomit2008$pH +naomit2008$Turbidite +naomit2008$Fluorescence +naomit2008$TemperatureEau +naomit2008$NiveauMer,CV=TRUE )
-
-table(naomit2008$Mois,lda1$class)
-
+  ###SERVER Developpement-------
+  
+  
+  observeEvent(input$toggle_cyl3, {
+    if (input$toggle_cyl3)
+      updateCheckboxGroupInput(session, 'TRAITPLANT', selected = unique((dshiny$Traitement)))
+    else
+      updateCheckboxGroupInput(session, 'TRAITPLANT', selected =  "IRD_012022" )
+  })
+  
+  observeEvent(input$toggle_cyl2, {
+    if (input$toggle_cyl2)
+      updateCheckboxGroupInput(session, 'BACPLANT2', selected = unique((dshiny$BAC)))
+    else
+      updateCheckboxGroupInput(session, 'BACPLANT2', selected =  "1" )
+  })
+  
+  
+  
+  output$plot2 <- renderPlot({
+    dshiny %>%
+      
+      dplyr::filter(!is.na(Developpement))%>%
+      dplyr::filter(Traitement %in% input$TRAITPLANT) %>%
+      dplyr::filter(BAC %in% input$BACPLANT2) %>%
+      ggplot(aes(Jour, colour = Developpement)) +
+      stat_ecdf(geom = "point",lwd=2,na.rm = FALSE,)+
+      stat_ecdf(geom = "line",lwd=1) +
+      scale_x_continuous(name="Duree (en jour)", breaks=seq(0,1000,2))+ theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+  })
+  
+  
+  
+  ###SERVER   MACOURIA-------
+  
+  
+  observeEvent(input$toggle_cylm2, {
+    if (input$toggle_cylm2)
+      updateCheckboxGroupInput(session, 'BACPLANTm2', selected = unique((data_macouria$Zone)))
+    else
+      updateCheckboxGroupInput(session, 'BACPLANTm2', selected =  "1" )
+  })
+  
+  
+  output$plotm2 <- renderPlot({
+    
+    if (input$change_plotm2 %in% "Point") 
+    { 
+      
+      data_macouria %>%
+        dplyr::filter(Zone %in% input$BACPLANTm2) %>%
+        ggplot(aes_string(y=input$ym2, x = input$xm2)) +
+        geom_point(aes_string(color = input$zm2,pch = input$zm2),lwd=2)+
+         {if(input$tendancem2)geom_smooth(aes_string(),se = F)}+
+        scale_color_manual(values = c(1:53)) + 
+         theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+      
+       
+      
+    } else if  (input$change_plotm2 %in% "Density") 
+    {  
+      
+      data_macouria %>%
+        dplyr::filter(Zone %in% input$BACPLANTm2) %>%
+        ggplot(aes_string(  x = input$xm2)) +
+        geom_density(aes_string(color = input$zm2,lty = input$zm2),lwd=2)+
+        ggtitle("Distribution")+
+        
+        {if(input$tendancem2)geom_smooth(aes_string(),se = F)}+
+        scale_color_manual(values = c(1:53)) + 
+        {if(input$densitym2)geom_density(aes_string( x = input$ym2)) }+          theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+    
+    }else if  (input$change_plotm2 %in% "Barchart") 
+    { 
+      
+      data_macouria %>%
+        dplyr::filter(Zone %in% input$BACPLANTm2) %>%
+        ggplot(aes_string(y=input$ym2,  x = input$xm2)) +
+        geom_bar(stat="identity",aes_string(fill = input$zm2)) +
+         scale_color_manual(values = c(1:53)) + 
+        theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal") 
+         }
+    else if  (input$change_plotm2 %in% "Hist")    { 
+      
+      
+      data_macouria %>%
+        dplyr::filter(Zone %in% input$BACPLANTm2) %>%
+        ggplot(aes_string(  x = input$xm2)) +
+        geom_histogram(aes_string(color = input$zm2,fill = input$zm2), alpha=0.4 )+
+        {if(input$densitym2)geom_histogram(aes_string( x = input$ym2),fill="blue",alpha=0.4) }+    scale_color_manual(values = c(1:53)) + 
+                  theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+      
+    } else {
+      
+      data_macouria %>%
+        dplyr::filter(Zone %in% input$BACPLANTm2) %>%
+        ggplot(aes_string(y=input$ym2,  x = input$xm2)) +
+        geom_boxplot( aes_string(fill = input$zm2)) +
+        scale_color_manual(values = c(1:53)) + 
+        theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal") 
+      
+       
+          
+    }
+    
+     
+  })
+  
+  
+  output$datam2 <- renderTable({
+    brushedPoints(data_macouria, input$plot_brushm2)
+  })
+  
+  
+  
+  
+  #observeEvent(input$toggle_cylR2, {
+  #  if (input$toggle_cylR2)
+  #    updateCheckboxGroupInput(session, 'BACPLANTR2', selected = unique((data_rpot$Zone)))
+  #  else
+  #    updateCheckboxGroupInput(session, 'BACPLANTR2', selected =  NULL )
+  # })
+  
+  ###SERVER RACINE-------
+  
+  
+  
+  
+  output$plotR2 <- renderPlot({
+    
+    
+    
+    if (input$change_plotR2 %in% "Point") 
+    {  data_rpot %>%
+        ggplot(aes_string(y=input$yR2, x = input$xR2)) +
+        geom_point(aes_string(color = input$zR2,pch = input$zR2),lwd=2)+
+        #ggtitle("Croissance de la tige d'Avicennia germinans")+
+        {if(input$tendanceR2)geom_smooth(aes_string(),se = F) }+
+        scale_color_manual(values = c(1:53)) + 
+        
+        theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+      
+      
+    } else if  (input$change_plotR2 %in% "Density") 
+    {  
+      
+      data_rpot %>%
+        ggplot() +
+        geom_density(aes_string( x = input$xR2))+
+        ggtitle("Distribution")+
+        {if(input$tendanceR2)geom_smooth(aes_string(),se = F) }+
+        {if(input$densityR2)geom_density(aes_string( x = input$yR2)) }+
+        scale_color_manual(values = c(1:53)) + 
+        theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+      
+      
+      
+    }else if  (input$change_plotR2 %in% "Barchart") 
+    { 
+      data_rpot %>%
+        ggplot(aes_string(y=input$yR2, x = input$xR2)) +
+        geom_bar(stat="identity") +
+        #ggtitle("Croissance de la tige d'Avicennia germinans")+
+        {if(input$tendanceR2)geom_smooth(aes_string(),se = F) }+
+        scale_color_manual(values = c(1:53)) + 
+        
+        theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+        
+    }
+    else if  (input$change_plotR2 %in% "Hist")    { 
+      
+      data_rpot %>%
+        ggplot(aes_string( x = input$xR2)) +
+        geom_histogram( alpha=0.4)+
+         {if(input$tendanceR2)geom_smooth(aes_string(),se = F) }+
+        {if(input$densityR2)geom_histogram(aes_string( x = input$yR2),fill="blue",alpha=0.4) }+
+        scale_color_manual(values = c(1:53)) + 
+        
+        theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+      
+      
+    } else {
+      
+      data_rpot %>%
+        ggplot(aes_string(y=input$yR2, x = as.factor(input$xR2))) +
+        geom_boxplot() +
+        ggtitle("Boxplot")+
+         scale_color_manual(values = c(1:53)) + 
+        
+        theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+       
+    }
+     
+  
+  })
+  
+  
+  output$dataR2 <- renderTable({
+    brushedPoints(data_rpot, input$plot_brushR2)
+  })
+  
+  
+###SERVER VOL MACOURIA-------
+  
+  observeEvent(input$toggle_cylV2, {
+    if (input$toggle_cylV2)
+      updateCheckboxGroupInput(session, 'BACPLANTV2', selected = unique((data_rac_macouria$ID)))
+    else
+      updateCheckboxGroupInput(session, 'BACPLANTV2', selected =  NULL )
+  })
+  
+  
+  
+  
+  
+  output$plotV2 <- renderPlot({
+    
+    
+    if (input$change_plotV2 %in% "Point") 
+      {
+      data_rac_macouria %>%
+        ggplot(aes_string(y=input$yV2, x = input$xV2)) +
+        geom_point(aes_string(color = input$zV2,pch = input$zV2),lwd=2)+
+        #ggtitle("Croissance de la tige d'Avicennia germinans")+
+        {if(input$tendanceV2)geom_smooth(aes_string(),se = F) }+
+        scale_color_manual(values = c(1:53)) + 
+        
+        theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+    } else if  (input$change_plotV2 %in% "Density") 
+    { 
+      data_rac_macouria %>%
+        ggplot(aes_string( x = input$xV2)) +
+        geom_density(aes_string( x = input$xV2))+
+        
+        ggtitle("Distribution")+
+        {if(input$tendanceV2)geom_smooth(aes_string(),se = F) }+
+        {if(input$densityV2)geom_density(aes_string( x = input$yV2)) }+
+        scale_color_manual(values = c(1:53)) + 
+        
+        theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+    }else if  (input$change_plotV2 %in% "Barchart") 
+    { 
+      data_rac_macouria %>%
+        ggplot(aes_string(y=input$yV2, x = input$xV2)) +
+        
+        geom_bar(stat="identity") +
+        
+        #ggtitle("Croissance de la tige d'Avicennia germinans")+
+         
+        
+        theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+    }
+      else      { 
+      data_rac_macouria %>%
+        ggplot(aes_string( x = input$xV2)) +
+        geom_histogram( alpha=0.4)+
+        {if(input$densityV2)geom_histogram(aes_string( x = input$yV2),fill="blue",alpha=0.4) }+
+          
+        #ggtitle("Croissance de la tige d'Avicennia germinans")+
+         scale_color_manual(values = c(1:53)) + 
+        
+        theme(panel.grid.major = element_line(linetype = "dashed"),  legend.title = element_text(family = "mono"), plot.background = element_rect(fill = "antiquewhite1"),  legend.position = "bottom", legend.direction = "horizontal")
+    }
+ 
+    
+  })
+      output$dataV2 <- renderTable({
+    brushedPoints(data_rac_macouria, input$plot_brushV2)
+  })
+  
+}
+
+# Run the application -----------
+shinyApp(ui = ui, server = server)
 
